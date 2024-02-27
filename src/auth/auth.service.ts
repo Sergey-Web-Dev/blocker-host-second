@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { UsersService } from 'src/users/users.service';
 import { PasswordService } from './password.service';
 import { JwtService } from '@nestjs/jwt';
@@ -25,5 +29,29 @@ export class AuthService {
     });
 
     return { accessToken };
+  }
+
+  async signIn(email: string, password: string) {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) throw new UnauthorizedException();
+
+    const hash = this.passwordService.getHash(password, user.salt);
+    if (hash !== user.hash) throw new UnauthorizedException();
+
+    const accessToken = await this.jwtService.signAsync({
+      id: user.id,
+      email: user.email,
+    });
+
+    return { accessToken };
+  }
+
+  async deleteUser(email: string) {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) throw new BadRequestException({ type: `Email doesn't exists` });
+
+    const oldUser = await this.usersService.delete(email);
+
+    return oldUser;
   }
 }

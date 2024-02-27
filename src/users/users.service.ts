@@ -20,4 +20,10 @@ export class UsersService {
       },
     });
   }
+
+  delete(email: string) {
+    return this.db.user.delete({
+      where: { email },
+    });
+  }
 }

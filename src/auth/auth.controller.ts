@@ -1,17 +1,26 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
   Post,
   Res,
+  UseGuards,
 } from '@nestjs/common';
-import { SignInBodyDto, SignUpBodyDto, GetSessionInfoDto } from './dto';
+import {
+  SignInBodyDto,
+  SignUpBodyDto,
+  GetSessionInfoDto,
+  DeleteUserBodyDto,
+} from './dto';
 import { ApiCreatedResponse, ApiOkResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { CookieService } from './cookie.service';
 import { Response } from 'express';
+import { AuthGuard } from './auth.guard';
+import { SessionInfo } from './sessionInfo.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -34,23 +43,44 @@ export class AuthController {
     this.cookieService.setToken(res, accessToken);
   }
 
+  @Delete('delete-user')
+  @ApiOkResponse()
+  async deleteUser(
+    @Body() body: DeleteUserBodyDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return await this.authService.deleteUser(body.email);
+  }
+
   @Post('sign-in')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse()
-  signIn(@Body() body: SignInBodyDto) {
-    return null;
+  async signIn(
+    @Body() body: SignInBodyDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { accessToken } = await this.authService.signIn(
+      body.email,
+      body.password,
+    );
+
+    this.cookieService.setToken(res, accessToken);
   }
 
   @Post('sign-out')
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse()
-  signOut() {}
+  @UseGuards(AuthGuard)
+  signOut(@Res({ passthrough: true }) res: Response) {
+    this.cookieService.removeToken(res);
+  }
 
   @Get('session-info')
+  @UseGuards(AuthGuard)
   @ApiOkResponse({
     type: GetSessionInfoDto,
   })
-  getSessionInfo() {
-    return null;
+  getSessionInfo(@SessionInfo() session: GetSessionInfoDto) {
+    return session;
   }
 }
